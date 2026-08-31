@@ -328,7 +328,17 @@ jobs:
           files: |
             ${{steps.sign-rustdesk.outputs.signedReleaseFile}}
 
+      # 🔔 SpaceDesk: e vetmja rrugëdalje që NUK varet nga nënshkrimi.
+      # Pa të, një ndërtim i mbaruar humbet bashkë me makinën.
+      - name: Upload unsigned APK (SpaceDesk)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: spacedesk-${{ env.VERSION }}-${{ matrix.job.arch }}-unsigned
+          path: signed-apk/*.apk
+          if-no-files-found: error
+
       - name: Publish unsigned apk package
+        continue-on-error: true
         if: env.ANDROID_SIGNING_KEY == null && env.UPLOAD_ARTIFACT == 'true'
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
         with:
