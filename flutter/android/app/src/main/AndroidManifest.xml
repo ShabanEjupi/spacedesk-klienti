@@ -45,20 +45,12 @@
             </intent-filter>
         </receiver>
 
-        <service
-            android:name=".InputService"
-            android:enabled="true"
-            android:exported="false"
-            android:label="SpaceDesk Input"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
-
-            <meta-data
-                android:name="android.accessibilityservice"
-                android:resource="@xml/accessibility_service_config" />
-        </service>
+        <!-- 🚨 08-09-2026: InputService (AccessibilityService) është HEQUR nga v1.
+             Play e kërkon një deklaratë të veçantë me video demo për Accessibility API,
+             dhe ajo është e vetmja pengesë që s'kalohet me tekst. SpaceDesk-u i v1-shit
+             është KONTROLLUES: hap desktopin e kompjuterit tënd nga telefoni — pikërisht
+             ç'bën edhe klienti iOS. Kontrolli i KËTIJ telefoni nga larg kthehet te një
+             version i mëpasëm, bashkë me deklaratën. Kodi i shërbimit rri te depoja. -->
 
         <activity
             android:name=".MainActivity"
