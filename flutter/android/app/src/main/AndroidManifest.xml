@@ -7,17 +7,26 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <!-- 🚦 09-09-2026 — SpaceDesk v1 eshte VETEM KONTROLLUES.
+         Cdo leje me poshte e detyron nje deklarate me VIDEO te Play Console, dhe
+         asnje prej tyre nuk i duhet kontrolluesit: ato i takojne anes qe KONTROLLOHET
+         (regjistrimi i ekranit, mikrofoni, sherbimi ne plan te pare, dritarja pluskuese).
+         `tools:node="remove"` nuk eshte zbukurim: pa te nje plugin Flutter i rikthen
+         ne manifestin E BASHKUAR, dhe burimi duket i paster nderkohe qe AAB-ja jo
+         ([[play-sherbimet-ne-plan-te-pare]]). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" tools:node="remove" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" tools:node="remove" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" tools:node="remove" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" tools:node="remove" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove" />
+    <uses-permission android:name="android.permission.BIND_ACCESSIBILITY_SERVICE" tools:node="remove" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" tools:node="remove" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" tools:node="remove" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" tools:node="remove" />
 
     <queries>
         <intent>
@@ -32,18 +41,6 @@
         android:label="SpaceDesk"
         android:roundIcon="@mipmap/ic_launcher"
         android:supportsRtl="true">
-
-        <receiver
-            android:name=".BootReceiver"
-            android:enabled="true"
-            android:exported="true">
-            <intent-filter android:priority="1000">
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
-                <!--ACTION_BOOT_COMPLETED for debug test on no root device-->
-                <action android:name="com.carriez.flutter_hbb.DEBUG_BOOT_COMPLETED" />
-            </intent-filter>
-        </receiver>
 
         <!-- 🚨 08-09-2026: InputService (AccessibilityService) është HEQUR nga v1.
              Play e kërkon një deklaratë të veçantë me video demo për Accessibility API,
@@ -80,19 +77,11 @@
             android:excludeFromRecents="true"
             android:theme="@style/Transparent" />
 
-        <service
-            android:name=".MainService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="specialUse|mediaProjection|microphone">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="@string/foreground_service_special_use_subtype" />
-        </service>
-
-        <service
-            android:name=".FloatingWindowService"
-            android:enabled="true" />
+        <!-- 🚦 MainService (specialUse|mediaProjection|microphone), FloatingWindowService dhe
+             BootReceiver jane HEQUR me 09-09-2026. Ato ekzistojne vetem per anen qe
+             KONTROLLOHET; SpaceDesk-u i celularit kontrollon, nuk kontrollohet.
+             Kodi i tyre rri te depoja — kthehen te nje version i mepasem bashke me
+             deklaratat me video, nese ndonjehere duhet. -->
 
         <!--
  Don't delete the meta-data below.
