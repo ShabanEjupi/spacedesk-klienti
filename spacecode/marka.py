@@ -456,6 +456,7 @@ ELEMENTET_JASHTE = [
 
 # Lejet nuk fshihen: shënohen `tools:node="remove"`, që bashkuesi të mos i kthejë.
 LEJET_JASHTE = [
+    "android.permission.BIND_ACCESSIBILITY_SERVICE",
     "android.permission.FOREGROUND_SERVICE",
     "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION",
     "android.permission.FOREGROUND_SERVICE_MICROPHONE",
@@ -619,14 +620,22 @@ else:
 if os.path.exists(_pm):
     _m = io.open(_pm, encoding="utf-8").read()
 
+    # 🚨 Kerkimi i thjeshte i fjales jep ALARM TE RREME te dy vende:
+    #   · nje KOMENT qe shpjegon pse dicka u hoq e permban vete fjalen;
+    #   · `BIND_ACCESSIBILITY_SERVICE tools:node="remove"` eshte pikerisht
+    #     HEQJA — forma e vetme qe e mban bashkuesin te mos e ktheje.
+    # Pra matet ajo qe MBETET E GJALLE: pa komente, pa rreshta te hequr.
+    _pa_koment = re.sub(r"<!--.*?-->", "", _m, flags=re.S)
+    _gjalle = "\n".join(r for r in _pa_koment.split("\n")
+                        if 'tools:node="remove"' not in r)
     for _fjala, _pse in [
         ("BIND_ACCESSIBILITY_SERVICE", "deklarata që ktheu 403-shin"),
         ("accessibilityservice", "veprimi i AccessibilityService-it"),
         ("foregroundServiceType", "kërkon një VIDEO për çdo lloj"),
         ("PROPERTY_SPECIAL_USE_FGS_SUBTYPE", "specialUse kërkon miratim më vete"),
     ]:
-        if _fjala in _m:
-            deshtime.append("%s: '%s' ende aty (%s)" % (MANIFESTI, _fjala, _pse))
+        if _fjala in _gjalle:
+            deshtime.append("%s: '%s' ende i gjalle (%s)" % (MANIFESTI, _fjala, _pse))
 
     for _tag, _emri, _ in ELEMENTET_JASHTE:
         if ('android:name="%s"' % _emri) in _m:
