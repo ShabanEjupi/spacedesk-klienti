@@ -368,6 +368,37 @@ else:
     print("✅ URL: asnjë rresht kodi nuk çon e nuk shkruan më rustdesk.com")
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  SHTRESA 4: versionCode-i — një numër i përdorur një herë e vret ngarkimin
+#
+#  🚨 MATUR 16-09-2026. AAB-ja e parë me URL-të e reja u ndërtua e plotë, u
+#  nënshkrua, u shkarkua — dhe Play-i e ktheu me `403 Version code 67 has
+#  already been used`. Sepse `flutter/pubspec.yaml` e mban të ngulitur
+#  `version: 1.4.9+67`: ÇDO ndërtim i rrjedhës kryesore prodhon të njëjtin numër.
+#  Kostoja: ~40 minuta ndërtimi, dhe gabimi del vetëm në fund, te ngarkimi.
+#
+#  Kura: numri nxirret nga ORA UTC — `YYMMDDHH`. Rritet vetvetiu, s'përsëritet
+#  brenda ditës, dhe lexohet me sy (26091608 = 16-09-2026, ora 08 UTC). I njëjti
+#  stil si te AAB-të e Hartës (26091401).
+# ═══════════════════════════════════════════════════════════════════════════
+import time as _koha
+
+VERZIONI_KOD = _koha.strftime("%y%m%d%H", _koha.gmtime())
+_pub = os.path.join(RRENJA, "flutter", "pubspec.yaml")
+if not os.path.exists(_pub):
+    deshtime.append("mungon flutter/pubspec.yaml — versionCode-i do të mbetej i ngulitur")
+else:
+    _t = io.open(_pub, encoding="utf-8").read()
+    _i_ri, _sa = re.subn(r"(?m)^version:[ \t]*([0-9]+\.[0-9]+\.[0-9]+)\+[0-9]+[ \t]*$",
+                         lambda m: "version: " + m.group(1) + "+" + VERZIONI_KOD,
+                         _t, count=1)
+    if _sa != 1:
+        deshtime.append("pubspec.yaml: rreshti `version: x.y.z+N` nuk u gjet")
+    else:
+        io.open(_pub, "w", encoding="utf-8").write(_i_ri)
+        print("  ✅ versionCode →", VERZIONI_KOD)
+
+
 # 🛡️ ROJA. Pa të, çdo model i pagjetur ishte vetëm një rresht ⚠️ dhe skripti
 # dilte 0 — pra ndërtimi vazhdonte me markë gjysmake. Tani ndërtimi BIE këtu.
 if deshtime:
