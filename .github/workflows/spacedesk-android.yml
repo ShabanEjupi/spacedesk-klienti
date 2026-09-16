@@ -282,9 +282,17 @@ jobs:
               pushd flutter
               flutter build apk "--${{ matrix.job.reltype }}" --target-platform android-arm64 --split-per-abi
               mv build/app/outputs/flutter-apk/app-arm64-v8a-${{ matrix.job.reltype }}.apk ../rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.apk
+              # 🚨 Play NUK pranon APK per nje app te ri — kerkon .aab. Workflow-i i
+              #    RustDesk-ut nxjerr vetem APK, prandaj bundle-i ndertohet KETU, pas tij.
+              #    Nenshkrimi behet te Ampere me spacedesk-upload.jks, kurre ketu
+              #    (celesi nuk shkon te GitHub).
+              # 🚨 PA `|| echo`: nje bundle qe deshton duhet ta vrase punen, jo ta
+              #    leje hapin te gjelber mbi asgje ([[ci-pamja-bosh-kalon-si-sukses]]).
               flutter build appbundle "--${{ matrix.job.reltype }}" --target-platform android-arm64
-              mv build/app/outputs/bundle/${{ matrix.job.reltype }}/app-${{ matrix.job.reltype }}.aab \
-                 ../spacedesk-${{ env.VERSION }}-${{ matrix.job.arch }}.aab
+              # Gradle e emerton dosjen sipas build-type-it; kerkohet, nuk hamendesohet.
+              AAB=$(find build/app/outputs/bundle -name "*.aab" | head -1)
+              [ -n "$AAB" ] || { echo "⛔ asnje .aab pas ndertimit"; exit 1; }
+              mv "$AAB" ../spacedesk-${{ env.VERSION }}-${{ matrix.job.arch }}.aab
             ;;
             armv7-linux-androideabi)
               mkdir -p ./flutter/android/app/src/main/jniLibs/armeabi-v7a
@@ -413,3 +421,14 @@ jobs:
           tag_name: ${{ env.TAG_NAME }}
           files: |
             signed-apk/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.apk
+
+      # 🔔 SpaceDesk: bundle-i për Play. Play NUK pranon APK për një app të ri,
+      # dhe ky workflow nxjerr vetëm APK. AAB-ja del e PANËNSHKRUAR; nënshkruhet
+      # te Ampere me `spacedesk-upload.jks`, sepse ai çelës nuk shkon kurrë te GitHub.
+      - name: Upload unsigned AAB (SpaceDesk)
+        if: matrix.job.target == 'aarch64-linux-android'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: spacedesk-${{ env.VERSION }}-aab-unsigned
+          path: spacedesk-${{ env.VERSION }}.aab
+          if-no-files-found: warn
