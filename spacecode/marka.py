@@ -399,6 +399,270 @@ else:
         print("  ✅ versionCode →", VERZIONI_KOD)
 
 
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  SHTRESA 5: v1 = VETËM DALJE — pa Accessibility, pa shërbime në plan të
+#  parë, pa hyrje me llogari
+#
+#  🚨 MATUR 16-09-2026. AAB-ja 26091608 u ndërtua e plotë dhe Play-i e refuzoi
+#  te KONFIRMIMI, jo te ngarkimi:
+#      ⛔ 403 Your accessibility permission declaration needs to be updated.
+#  Derisa ajo deklaratë të mbushet, ASNJË ndryshim nuk konfirmohet dot te ky
+#  app. Dhe e njëjta pritë rri një hap më tutje: manifesti deklaron TRE
+#  `foregroundServiceType` (specialUse|mediaProjection|microphone), dhe ajo
+#  faqe kërkon një VIDEO për secilin ([[play-sherbimet-ne-plan-te-pare]]).
+#
+#  🔨 VENDIMI i Shabanit: të dyja hiqen nga v1 dhe kthehen te v2 — e njëjta
+#  rrugë si [[publikimi-i-lehte-pastaj-verzioni-i-plote]]. Ç'humbet: telefoni
+#  nuk KONTROLLOHET më nga larg. Ç'mbetet: telefoni KONTROLLON kompjuterin —
+#  vetë veçoria e app-it, dhe e vetmja që listimi premton.
+#
+#  🚨 HEQJA E DEKLARATËS PA HEQJEN E UI-SË ËSHTË REFUZIM TJETËR. Një buton
+#  «Share screen» që nuk nis dot më asnjë shërbim është pikërisht ankesa
+#  «Unresponsive UI elements» me të cilën Play-i rrëzoi SpaceRent-in
+#  ([[spacerent-refuzimi-broken-functionality]]). Prandaj UI-ja nuk fshihet me
+#  dorë nga dhjetë vende: ndizet flamuri I VETË rrjedhës kryesore —
+#  `is_outgoing_only()` — dhe ajo i heq vetvetiu skedën «Share Screen», lejet
+#  e ekranit dhe çdo cilësim hyrës. Roja shkon te NYJA
+#  ([[nje-roje-globale-jo-njeqind-ndreqje]]).
+#
+#  🚨 `tools:node="remove"`, jo fshirje rreshti: bashkuesi i manifesteve i
+#  rikthen lejet nga çdo bibliotekë e varur — burimi duket i pastër, AAB-ja jo.
+#
+#  ⚠️ Kodi Kotlin i `InputService`/`MainService` MBETET te burimi; vetëm
+#  manifesti nuk i deklaron. Kështu ndërtimi nuk bie, dhe v2 i rikthen me një
+#  rresht. Asgjë nuk i nis: `MainActivity` i lidhet MainService-it vetëm kur
+#  `MainService.isReady`, dhe atë e bën true vetëm ana hyrëse e UI-së.
+# ═══════════════════════════════════════════════════════════════════════════
+
+print()
+print("5) v1: pa Accessibility, pa FGS, pa llogari")
+
+MANIFESTI = "flutter/android/app/src/main/AndroidManifest.xml"
+_pm = os.path.join(RRENJA, MANIFESTI)
+
+# (tag, android:name, pse hiqet)
+ELEMENTET_JASHTE = [
+    ("service", ".InputService",
+     "BIND_ACCESSIBILITY_SERVICE — deklarata që ktheu 403-shin"),
+    ("service", ".MainService",
+     "foregroundServiceType specialUse|mediaProjection|microphone"),
+    ("service", ".FloatingWindowService",
+     "dritarja pluskuese — vetëm kur TELEFONI kontrollohet"),
+    ("receiver", ".BootReceiver",
+     "nisja te ndezja — nis MainService-in, pra s'ka më ç'nis"),
+]
+
+# Lejet nuk fshihen: shënohen `tools:node="remove"`, që bashkuesi të mos i kthejë.
+LEJET_JASHTE = [
+    "android.permission.FOREGROUND_SERVICE",
+    "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION",
+    "android.permission.FOREGROUND_SERVICE_MICROPHONE",
+    "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
+    "android.permission.RECORD_AUDIO",
+    "android.permission.SYSTEM_ALERT_WINDOW",
+    "android.permission.RECEIVE_BOOT_COMPLETED",
+    "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+]
+
+# 🛡️ KUNDËRSHEMBULLI ([[kundershembulli-mat-ndreqjen]]): këto NUK guxojnë të
+# preken. Pa to porta do të kalonte edhe mbi një manifest të zbrazur krejt.
+LEJET_BRENDA = [
+    "android.permission.INTERNET",
+    "android.permission.ACCESS_NETWORK_STATE",
+    "android.permission.WAKE_LOCK",
+    "android.permission.POST_NOTIFICATIONS",
+]
+
+if not os.path.exists(_pm):
+    deshtime.append("mungon " + MANIFESTI)
+else:
+    _t = io.open(_pm, encoding="utf-8").read()
+    _fillestar = _t
+
+    for _tag, _emri, _pse in ELEMENTET_JASHTE:
+        # `[^>]*` s'e kapërcen dot një `>`, pra ndalon te fundi i etiketës
+        # hapëse edhe kur atributet shtrihen në disa rreshta.
+        _rx = re.compile(
+            r'\n[ \t]*<%s\b[^>]*android:name="%s"[^>]*(?:/>|>.*?</%s>)\n'
+            % (_tag, re.escape(_emri), _tag), re.S)
+        _t2, _sa = _rx.subn("\n", _t)
+        if _sa == 1:
+            _t = _t2
+            print("  ✅ hoqi <%s %s> — %s" % (_tag, _emri, _pse))
+        elif _sa > 1:
+            deshtime.append("%s: %d dalje të <%s %s> — pritej 1"
+                            % (MANIFESTI, _sa, _tag, _emri))
+        elif ('android:name="%s"' % _emri) in _t:
+            deshtime.append("%s: <%s %s> ekziston po s'u kap nga modeli"
+                            % (MANIFESTI, _tag, _emri))
+        else:
+            print("  ℹ️  <%s %s> s'ishte më aty" % (_tag, _emri))
+
+    for _leje in LEJET_JASHTE:
+        _plot = '<uses-permission android:name="%s" tools:node="remove" />' % _leje
+        if _plot in _t:
+            continue
+        _vjeter = '<uses-permission android:name="%s" />' % _leje
+        if _vjeter in _t:
+            _t = _t.replace(_vjeter, _plot)
+            print("  ✅ tools:node=remove →", _leje.rsplit(".", 1)[1])
+        else:
+            deshtime.append("%s: leja %s as e deklaruar as e hequr — burimi ndryshoi"
+                            % (MANIFESTI, _leje))
+
+    if _t != _fillestar:
+        io.open(_pm, "w", encoding="utf-8").write(_t)
+        ndryshime.append(MANIFESTI)
+
+# ── Flamujt e vetë rrjedhës kryesore: një ndryshim, dhjetë ekrane ──────────
+#
+# 🚨 Pse te Rust-i e jo te Dart-i: të njëjtat tri funksione i lexojnë EDHE
+# desktopi, EDHE mobili, EDHE tubacioni i pamjeve. Nëse UI-ja fshihet me dorë
+# te Dart-i, pamjet e dyqanit do të nxirreshin nga një ndërtim që ende i
+# tregon ato ekrane — pra pamje që nuk përputhen me app-in
+# ([[pershkrimi-matet-kunder-ekraneve]]).
+#
+# ⚠️ Kompjuteri demo i shqyrtuesit (ID 468543837) NUK preket: ai xhiron .deb-in
+# e RustDesk-ut nga rrjedha kryesore, jo këtë degëzim (demo/Dockerfile). Pra
+# «vetëm dalje» këtu nuk e prish anën që PRANON lidhjen atje.
+KONF = "libs/hbb_common/src/config.rs"
+_pc = os.path.join(RRENJA, KONF)
+
+FLAMUJT = [
+    ("is_outgoing_only",
+     'pub fn is_outgoing_only() -> bool {\n'
+     '    HARD_SETTINGS\n'
+     '        .read()\n'
+     '        .unwrap()\n'
+     '        .get("conn-type")\n'
+     '        .map_or(false, |x| x == ("outgoing"))\n'
+     '}',
+     'pub fn is_outgoing_only() -> bool {\n'
+     '    // SpaceDesk v1: vetëm DALJE. Kjo fsheh skedën «Share Screen», lejet e\n'
+     '    // ekranit dhe çdo cilësim hyrës — sepse manifesti nuk i deklaron më\n'
+     '    // AccessibilityService-in dhe shërbimet në plan të parë, dhe një buton\n'
+     '    // pa pasojë është refuzim më vete. Kthehet te v2 bashkë me to.\n'
+     '    true\n'
+     '}'),
+    ("is_disable_account",
+     'pub fn is_disable_account() -> bool {\n'
+     '    is_some_hard_opton("disable-account")\n'
+     '}',
+     'pub fn is_disable_account() -> bool {\n'
+     '    // SpaceDesk v1: pa hyrje me llogari. Fsheh butonin Login, skedën e\n'
+     '    // librit të adresave dhe panelin e grupit te TË GJITHA ndërfaqet.\n'
+     '    true\n'
+     '}'),
+    ("is_disable_ab",
+     'pub fn is_disable_ab() -> bool {\n'
+     '    is_some_hard_opton("disable-ab")\n'
+     '}',
+     'pub fn is_disable_ab() -> bool {\n'
+     '    // Libri i adresave rri te llogaria; pa llogari s\'ka ç\'sinkronizohet.\n'
+     '    true\n'
+     '}'),
+]
+
+if not os.path.exists(_pc):
+    deshtime.append("mungon " + KONF)
+else:
+    _t = io.open(_pc, encoding="utf-8").read()
+    _fillestar = _t
+    for _emri, _vjeter, _ri in FLAMUJT:
+        if _ri in _t:
+            print("  ℹ️  %s() ishte tashmë i ngulur" % _emri)
+            continue
+        if _vjeter not in _t:
+            deshtime.append("%s: trupi i %s() ndryshoi — mos e ngul verbërisht"
+                            % (KONF, _emri))
+            continue
+        if _t.count(_vjeter) != 1:
+            deshtime.append("%s: %d dalje të %s() — pritej 1"
+                            % (KONF, _t.count(_vjeter), _emri))
+            continue
+        _t = _t.replace(_vjeter, _ri)
+        print("  ✅ %s() → true" % _emri)
+    if _t != _fillestar:
+        io.open(_pc, "w", encoding="utf-8").write(_t)
+        ndryshime.append(KONF)
+
+# ── Një çelës i vetëm te Dart-i që flamuri NUK e mbulon ────────────────────
+#
+# 🚨 «Keep <marka> background service» rri jashtë çdo `if (!outgoingOnly)`.
+# Pa këtë rresht, v1 do të kishte një çelës që kërkon leje për një shërbim që
+# manifesti s'e deklaron më — buton pa pasojë, pra pikërisht refuzimi që po
+# shmangim.
+CILESIMET = "flutter/lib/mobile/pages/settings_page.dart"
+_ps = os.path.join(RRENJA, CILESIMET)
+_vjeter_bat = "    if (_hasIgnoreBattery) {"
+_ri_bat = "    if (_hasIgnoreBattery && !bind.isOutgoingOnly()) {"
+if not os.path.exists(_ps):
+    deshtime.append("mungon " + CILESIMET)
+else:
+    _t = io.open(_ps, encoding="utf-8").read()
+    if _ri_bat in _t:
+        print("  ℹ️  çelësi i baterisë ishte tashmë i kushtëzuar")
+    elif _vjeter_bat in _t:
+        io.open(_ps, "w", encoding="utf-8").write(_t.replace(_vjeter_bat, _ri_bat, 1))
+        ndryshime.append(CILESIMET)
+        print("  ✅ çelësi «Keep … background service» fshihet te vetëm-dalje")
+    else:
+        deshtime.append("%s: `if (_hasIgnoreBattery)` s'u gjet — burimi ndryshoi"
+                        % CILESIMET)
+
+# ── 🛡️ PORTA E SHTRESËS 5 ─────────────────────────────────────────────────
+#
+# 🚨 Matet REZULTATI, jo veprimi. Një `replace` që s'kapi asgjë dhe një
+# skedar i shkruar gjysmak duken njësoj te dalja ([[shkrimi-deshtoi-po-porta-kaloi]]).
+if os.path.exists(_pm):
+    _m = io.open(_pm, encoding="utf-8").read()
+
+    for _fjala, _pse in [
+        ("BIND_ACCESSIBILITY_SERVICE", "deklarata që ktheu 403-shin"),
+        ("accessibilityservice", "veprimi i AccessibilityService-it"),
+        ("foregroundServiceType", "kërkon një VIDEO për çdo lloj"),
+        ("PROPERTY_SPECIAL_USE_FGS_SUBTYPE", "specialUse kërkon miratim më vete"),
+    ]:
+        if _fjala in _m:
+            deshtime.append("%s: '%s' ende aty (%s)" % (MANIFESTI, _fjala, _pse))
+
+    for _tag, _emri, _ in ELEMENTET_JASHTE:
+        if ('android:name="%s"' % _emri) in _m:
+            deshtime.append("%s: <%s %s> ende i deklaruar" % (MANIFESTI, _tag, _emri))
+
+    for _leje in LEJET_JASHTE:
+        if ('android:name="%s" tools:node="remove"' % _leje) not in _m:
+            deshtime.append("%s: %s pa tools:node=remove — bashkuesi e kthen"
+                            % (MANIFESTI, _leje))
+
+    # 🛡️ Kundërshembulli: pa këtë, një manifest i zbrazur krejt do të kalonte.
+    for _leje in LEJET_BRENDA:
+        if ('android:name="%s" />' % _leje) not in _m:
+            deshtime.append("%s: %s u prek — heqja s'ishte e synuar"
+                            % (MANIFESTI, _leje))
+    if 'android:name=".MainActivity"' not in _m:
+        deshtime.append("%s: MainActivity u hoq — app-i s'do të nisej fare" % MANIFESTI)
+
+    # Dhe XML-ja duhet të mbetet XML: një regex mbi etiketa e prish në heshtje.
+    try:
+        import xml.etree.ElementTree as _ET
+        _ET.fromstring(_m)
+    except Exception as _e:
+        deshtime.append("%s: XML i pavlefshëm pas heqjes — %s" % (MANIFESTI, _e))
+
+if os.path.exists(_pc):
+    _c = io.open(_pc, encoding="utf-8").read()
+    for _emri, _, _ri in FLAMUJT:
+        if _ri not in _c:
+            deshtime.append("%s: %s() nuk u ngul" % (KONF, _emri))
+    # 🛡️ Kundërshembulli: `is_incoming_only()` ka trup thuajse identik me
+    # `is_outgoing_only()`. Nëse edhe ai doli `true`, modeli kapi shumë.
+    if 'pub fn is_incoming_only() -> bool {\n    HARD_SETTINGS' not in _c:
+        deshtime.append("%s: is_incoming_only() u prek — modeli kapi shumë" % KONF)
+
+
 # 🛡️ ROJA. Pa të, çdo model i pagjetur ishte vetëm një rresht ⚠️ dhe skripti
 # dilte 0 — pra ndërtimi vazhdonte me markë gjysmake. Tani ndërtimi BIE këtu.
 if deshtime:

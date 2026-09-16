@@ -320,6 +320,35 @@ jobs:
           popd
           mkdir -p aab && mv spacedesk-*.aab aab/
 
+      # 🚨 Matet manifesti I NDERTUAR, kurre burimi. AAB-ja e 07-09 ende kishte
+      # BIND_ACCESSIBILITY_SERVICE edhe pse burimi ishte pastruar me 08-09 — dhe
+      # ate e mesuam vetem te ngarkimi, pas ~40 minutash ndertimi. Dhe 26091608
+      # ra te KONFIRMIMI me 403. Tani bie ketu, ne minuten e pare pas ndertimit.
+      - name: Porta e v1 — asnje deklarate qe kerkon video
+        run: |
+          set -euo pipefail
+          AAB=$(ls aab/*.aab)
+          echo "manifesti i ndertuar i $AAB"
+          M=$(unzip -p "$AAB" base/manifest/AndroidManifest.xml | strings -a)
+          KEQ=0
+          for f in BIND_ACCESSIBILITY_SERVICE accessibilityservice \
+                   FOREGROUND_SERVICE RECORD_AUDIO SYSTEM_ALERT_WINDOW \
+                   RECEIVE_BOOT_COMPLETED REQUEST_IGNORE_BATTERY_OPTIMIZATIONS \
+                   MainService FloatingWindowService BootReceiver InputService; do
+            if printf '%s' "$M" | grep -qi -- "$f"; then
+              echo "⛔ '$f' rri te AAB-ja — bashkuesi e ktheu, ose marka.py nuk u xhirua"
+              KEQ=1
+            fi
+          done
+          # 🛡️ Kundershembulli: pa keto, nje lexim BOSH i manifestit do te kalonte
+          # si 'i paster' ([[provat-qe-nuk-bien-kurre]]).
+          for f in android.permission.INTERNET MainActivity tech.spacecode.desk; do
+            printf '%s' "$M" | grep -q -- "$f" \
+              || { echo "⛔ '$f' MUNGON — matja s'lexoi asgje, s'eshte 'i paster'"; KEQ=1; }
+          done
+          [ "$KEQ" = 0 ] && echo "✅ AAB-ja nuk deklaron asgje qe kerkon video"
+          exit $KEQ
+
       - name: Upload AAB (SpaceDesk)
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
