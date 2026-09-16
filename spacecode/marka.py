@@ -531,60 +531,98 @@ else:
 KONF = "libs/hbb_common/src/config.rs"
 _pc = os.path.join(RRENJA, KONF)
 
+# (emri i funksionit, komenti qe shpjegon pse)
+#
+# 🚨 NUK kapet teksti fjale-per-fjale. Prova e pare ne CI ra pikerisht ketu:
+# nenmoduli te GitHub-i (f1ce265) e kishte `is_outgoing_only()` te shkruar ndryshe
+# nga kopja te Ampere, dhe nje `str.replace` mbi trupin e sakte nuk gjeti asgje —
+# ndertimi u vra mbi nje burim krejt te shendoshe.
+#
+# 🔑 Dhe ai burim ishte ME I MIRE se zevendesimi qe kisha shkruar: trupi nuk
+# behet `true` fare, por KUSHTEZOHET me platformen. Ndryshimi ka rendesi te
+# matshme — tubacioni i pamjeve e nderton TE NJEJTIN kod si Linux desktop, dhe nje
+# `true` i pakushtezuar do t'i hiqte ato ekrane edhe atje. Pra ngulet forma e
+# kushtezuar, dhe trupi i vjeter mbahet si dege `not(android/ios)`.
+CFG_MOBIL = '#[cfg(any(target_os = "android", target_os = "ios"))]'
+CFG_TJERA = '#[cfg(not(any(target_os = "android", target_os = "ios")))]'
+
 FLAMUJT = [
     ("is_outgoing_only",
-     'pub fn is_outgoing_only() -> bool {\n'
-     '    HARD_SETTINGS\n'
-     '        .read()\n'
-     '        .unwrap()\n'
-     '        .get("conn-type")\n'
-     '        .map_or(false, |x| x == ("outgoing"))\n'
-     '}',
-     'pub fn is_outgoing_only() -> bool {\n'
-     '    // SpaceDesk v1: vetëm DALJE. Kjo fsheh skedën «Share Screen», lejet e\n'
-     '    // ekranit dhe çdo cilësim hyrës — sepse manifesti nuk i deklaron më\n'
-     '    // AccessibilityService-in dhe shërbimet në plan të parë, dhe një buton\n'
-     '    // pa pasojë është refuzim më vete. Kthehet te v2 bashkë me to.\n'
-     '    true\n'
-     '}'),
+     "// \U0001f6a8 SpaceDesk v1: te celulari klienti eshte VETEM KONTROLLUES. Pa kete,\n"
+     "// app-i deklaron AccessibilityService dhe tri lloje `foregroundServiceType`,\n"
+     "// dhe Play e ndal botimin derisa secila te deklarohet me VIDEO. Kthimi `true`\n"
+     "// heq skeden «Share Screen» dhe cdo cilesim hyres me rrugen qe vete rrjedha\n"
+     "// kryesore e ka (conn-type=outgoing) — pra pa butona qe mbeten pa pasoje."),
     ("is_disable_account",
-     'pub fn is_disable_account() -> bool {\n'
-     '    is_some_hard_opton("disable-account")\n'
-     '}',
-     'pub fn is_disable_account() -> bool {\n'
-     '    // SpaceDesk v1: pa hyrje me llogari. Fsheh butonin Login, skedën e\n'
-     '    // librit të adresave dhe panelin e grupit te TË GJITHA ndërfaqet.\n'
-     '    true\n'
-     '}'),
+     "// \U0001f6a8 SpaceDesk v1: pa hyrje me llogari. Fsheh butonin Login, skeden e\n"
+     "// librit te adresave dhe panelin e grupit. Kthehet te v2."),
     ("is_disable_ab",
-     'pub fn is_disable_ab() -> bool {\n'
-     '    is_some_hard_opton("disable-ab")\n'
-     '}',
-     'pub fn is_disable_ab() -> bool {\n'
-     '    // Libri i adresave rri te llogaria; pa llogari s\'ka ç\'sinkronizohet.\n'
-     '    true\n'
-     '}'),
+     "// \U0001f6a8 Libri i adresave rri te llogaria; pa llogari s'ka ce sinkronizohet."),
 ]
+
+
+def _rx_funksioni(emri):
+    return re.compile(r"(?ms)^pub fn %s\(\) -> bool \{\n(.*?)^\}\n" % re.escape(emri))
+
+
+def _eshte_ngulur(trupi):
+    """E ngulur = dega e mobilit ekziston DHE kthen true."""
+    if CFG_MOBIL not in trupi:
+        return False
+    pas = trupi.split(CFG_MOBIL, 1)[1]
+    # vetem deri te dega tjeter, qe nje `return true` i degës se dyte te mos genjeje
+    pas = pas.split(CFG_TJERA, 1)[0]
+    return "return true;" in pas
+
+
+def _ngul_flamurin(tekst, emri, koment):
+    """Kthen (tekst, gjendja): 'ngulur' | 'ishte' | mesazh gabimi."""
+    rx = _rx_funksioni(emri)
+    gjetjet = rx.findall(tekst)
+    if not gjetjet:
+        return tekst, "nenshkrimi `pub fn %s() -> bool` s'u gjet" % emri
+    if len(gjetjet) != 1:
+        return tekst, "%d dalje te %s() — pritej 1" % (len(gjetjet), emri)
+    m = rx.search(tekst)
+    trupi = m.group(1)
+    if _eshte_ngulur(trupi):
+        return tekst, "ishte"
+    # 🛡 Kushtezohet vetem trupi I NJOHUR i rrjedhes kryesore. Nese lexon dicka
+    # tjeter, dikush e ka ndryshuar — dhe nje `true` mbi te do te fshihte nje
+    # vendim qe s'e dime.
+    if "HARD_SETTINGS" not in trupi and "is_some_hard_opton" not in trupi:
+        return tekst, ("trupi i %s() s'lexon me HARD_SETTINGS (%s…) — mos e ngul verberisht"
+                       % (emri, " ".join(trupi.split())[:60]))
+    i_vjetri = "\n".join(("    " + r) if r.strip() else r
+                         for r in trupi.rstrip("\n").split("\n"))
+    i_ri = ("pub fn %s() -> bool {\n"
+            "%s\n"
+            "    %s\n"
+            "    {\n"
+            "        return true;\n"
+            "    }\n"
+            "    %s\n"
+            "    {\n"
+            "%s\n"
+            "    }\n"
+            "}\n") % (emri,
+                      "\n".join("    " + r for r in koment.split("\n")),
+                      CFG_MOBIL, CFG_TJERA, i_vjetri)
+    return tekst[:m.start()] + i_ri + tekst[m.end():], "ngulur"
 
 if not os.path.exists(_pc):
     deshtime.append("mungon " + KONF)
 else:
     _t = io.open(_pc, encoding="utf-8").read()
     _fillestar = _t
-    for _emri, _vjeter, _ri in FLAMUJT:
-        if _ri in _t:
+    for _emri, _koment in FLAMUJT:
+        _t, _gjendja = _ngul_flamurin(_t, _emri, _koment)
+        if _gjendja == "ngulur":
+            print("  ✅ %s() → true" % _emri)
+        elif _gjendja == "ishte":
             print("  ℹ️  %s() ishte tashmë i ngulur" % _emri)
-            continue
-        if _vjeter not in _t:
-            deshtime.append("%s: trupi i %s() ndryshoi — mos e ngul verbërisht"
-                            % (KONF, _emri))
-            continue
-        if _t.count(_vjeter) != 1:
-            deshtime.append("%s: %d dalje të %s() — pritej 1"
-                            % (KONF, _t.count(_vjeter), _emri))
-            continue
-        _t = _t.replace(_vjeter, _ri)
-        print("  ✅ %s() → true" % _emri)
+        else:
+            deshtime.append("%s: %s" % (KONF, _gjendja))
     if _t != _fillestar:
         io.open(_pc, "w", encoding="utf-8").write(_t)
         ndryshime.append(KONF)
@@ -663,9 +701,10 @@ if os.path.exists(_pm):
 
 if os.path.exists(_pc):
     _c = io.open(_pc, encoding="utf-8").read()
-    for _emri, _, _ri in FLAMUJT:
-        if _ri not in _c:
-            deshtime.append("%s: %s() nuk u ngul" % (KONF, _emri))
+    for _emri, _ in FLAMUJT:
+        _m = _rx_funksioni(_emri).search(_c)
+        if not _m or not _eshte_ngulur(_m.group(1)):
+            deshtime.append("%s: %s() nuk kthen true te android/ios" % (KONF, _emri))
     # 🛡️ Kundërshembulli: `is_incoming_only()` ka trup thuajse identik me
     # `is_outgoing_only()`. Nëse edhe ai doli `true`, modeli kapi shumë.
     if 'pub fn is_incoming_only() -> bool {\n    HARD_SETTINGS' not in _c:
