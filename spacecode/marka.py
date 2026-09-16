@@ -121,6 +121,98 @@ print("U ndryshuan %d skedarë:" % len(ndryshime))
 for x in ndryshime:
     print("  ·", x)
 
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  SHTRESA 2: src/lang/*.rs — teksti qe e sheh VERTET perdoruesi
+#
+#  🚨 MATUR 16-09-2026. Deri sot marka.py ndryshonte PESE gjera (serveri,
+#  celesi, APP_NAME, gradle, nje skript). Ndersa te 52 skedaret e gjuheve
+#  rrinin 1338 dalje te fjales "RustDesk" — mes tyre ekrani i PARE:
+#      ("connecting_status", "Connecting to the RustDesk network...")
+#  Pra app-i shpallej "i markuar" dhe shqyrtuesi i Play-it lexonte RustDesk
+#  te sekonda e pare. Kjo eshte pikerisht ankesa e Shabanit.
+#
+#  🔑 Dy kurthe qe e bejne ndreqjen jo-triviale:
+#
+#  1. QELESAT NUK PREKEN. Disa celesa E PERMBAJNE fjalen ("About RustDesk").
+#     Nje zevendesim i verber do t'i prishte kerkimet te Dart-i, ku thirret
+#     translate('Keep RustDesk background service'). Prandaj ndryshohet VETEM
+#     vlera (vargu i dyte i cdo tuple-i).
+#
+#  2. ANGLISHTJA BIE MBI VETE QELESIN. `en.rs` NUK ka hyrje per "About
+#     RustDesk" — RustDesk-u e shfaq celesin ashtu si eshte kur mungon
+#     perkthimi. Pra vlerat e ndreqara nuk mjaftojne: per cdo celes qe permban
+#     marken e vjeter i SHTOHET en.rs-se nje hyrje e markuar. Celesi mbetet i
+#     paprekur, ekrani del i yni.
+# ═══════════════════════════════════════════════════════════════════════════
+import re, glob
+
+E_VJETER = "RustDesk"
+E_RE = EMRI if "EMRI" in dir() else "SpaceDesk"
+
+LANG = os.path.join(RRENJA, "src", "lang")
+RRESHTI = re.compile(r'^(\s*\(")((?:[^"\\]|\\.)*)(",\s*")((?:[^"\\]|\\.)*)("\s*\),?\s*)$')
+
+celesat_me_marke = set()
+prekur = 0
+
+for f in sorted(glob.glob(os.path.join(LANG, "*.rs"))):
+    rreshtat = open(f, encoding="utf-8").read().split("\n")
+    dal = []
+    ndryshuar = False
+    for r in rreshtat:
+        m = RRESHTI.match(r)
+        if not m:
+            dal.append(r); continue
+        celesi, vlera = m.group(2), m.group(4)
+        if E_VJETER in celesi:
+            celesat_me_marke.add(celesi)
+        if E_VJETER in vlera:
+            vlera = vlera.replace(E_VJETER, E_RE)
+            ndryshuar = True
+            r = m.group(1) + celesi + m.group(3) + vlera + m.group(5)
+        dal.append(r)
+    if ndryshuar:
+        open(f, "w", encoding="utf-8").write("\n".join(dal))
+        prekur += 1
+
+print("📐 skedarë gjuhësh të ndryshuar: %d" % prekur)
+
+# ── en.rs: hyrje e markuar për çdo çelës që e mban markën e vjetër ──────────
+EN = os.path.join(LANG, "en.rs")
+if not os.path.exists(EN):
+    deshtime.append("src/lang/en.rs mungon — anglishtja do të binte mbi çelësat")
+else:
+    teksti = open(EN, encoding="utf-8").read()
+    ekzistuese = set(re.findall(r'^\s*\("((?:[^"\\]|\\.)*)"\s*,', teksti, re.M))
+    shtuar = []
+    for c in sorted(celesat_me_marke):
+        if c in ekzistuese:
+            continue
+        shtuar.append('        ("%s", "%s"),' % (c, c.replace(E_VJETER, E_RE)))
+    if shtuar:
+        # futen menjëherë pas hapjes së vargut `[`
+        ankor = "    [\n"
+        if ankor not in teksti:
+            deshtime.append("en.rs: ankori `[` nuk u gjet — struktura ndryshoi")
+        else:
+            teksti = teksti.replace(ankor, ankor + "\n".join(shtuar) + "\n", 1)
+            open(EN, "w", encoding="utf-8").write(teksti)
+            print("📐 hyrje të reja te en.rs (anglishtja binte mbi çelësin): %d" % len(shtuar))
+
+# ── 🛡️ PORTA: asnjë vlerë e dukshme nuk guxon të mbajë markën e vjetër ─────
+mbeten = []
+for f in sorted(glob.glob(os.path.join(LANG, "*.rs"))):
+    for nr, r in enumerate(open(f, encoding="utf-8"), 1):
+        m = RRESHTI.match(r.rstrip("\n"))
+        if m and E_VJETER in m.group(4):
+            mbeten.append("%s:%d" % (os.path.basename(f), nr))
+if mbeten:
+    deshtime.append("src/lang: %d vlera ende mbajnë '%s' (%s…)"
+                    % (len(mbeten), E_VJETER, ", ".join(mbeten[:3])))
+else:
+    print("✅ src/lang: asnjë vlerë e dukshme nuk mban markën e vjetër")
+
 # 🛡️ ROJA. Pa të, çdo model i pagjetur ishte vetëm një rresht ⚠️ dhe skripti
 # dilte 0 — pra ndërtimi vazhdonte me markë gjysmake. Tani ndërtimi BIE këtu.
 if deshtime:
