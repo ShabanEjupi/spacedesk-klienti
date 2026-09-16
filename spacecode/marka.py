@@ -213,6 +213,161 @@ if mbeten:
 else:
     print("✅ src/lang: asnjë vlerë e dukshme nuk mban markën e vjetër")
 
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  SHTRESA 3: URL-të — lidhjet që e çojnë njeriun te faqja e HUAJ
+#
+#  🚨 MATUR 16-09-2026. Marka e tekstit u ndreq te shtresa 2, po çdo lidhje
+#  «Website», «Privacy», «Download», «Pricing» dhe çdo lidhje ndihme te
+#  gabimet e Linux-it/macOS-it hapte ende `rustdesk.com`. Te MOBILI gjithashtu
+#  (`flutter/lib/mobile/pages/settings_page.dart`) — pra te app-i i BOTUAR,
+#  jo vetëm te desktopi.
+#
+#  🔑 Nuk u ndryshuan më parë sepse s'kishim faqe barasvlerëse dhe një URL e re
+#  do të jepte 404 në vend të ndihmës. Faqet u shkruan sot dhe u matën 200 PARA
+#  se lidhjet të ndërroheshin:
+#      https://spacedesk.spacecode.tech/ndihma.html   (#mac #x11 #ekrani-kycjes #lejet-linux #cmimi)
+#      https://spacedesk.spacecode.tech/privatesia.html
+#      https://spacedesk.spacecode.tech/api/version/latest  → {"url":""}
+#
+#  🚨🚨 ZËVENDËSIMI NUK BËHET ME `str.replace` TE PREFIKSI. Provuar me
+#  kundërshembull: me një model të shkurtër "https://rustdesk.com" te lista,
+#  një URL KRESJE e panjohur nga rrjedha kryesore (p.sh. `/blog/i-ri`) bëhej
+#  `spacedesk.spacecode.tech/blog/i-ri` — pra 404 te faqja jonë, dhe porta
+#  dilte e gjelbër sepse fjala «rustdesk.com» ishte zhdukur. Roja nuk kishte si
+#  të binte kurrë ([[provat-qe-nuk-bien-kurre]]).
+#  Kura: kapet URL-ja E PLOTË me regex dhe kërkohet te tabela. Ç'nuk gjendet aty
+#  NUK preket dhe e vret ndërtimin — njeriu vendos ku duhet të çojë.
+#
+#  🚨 Tri vende NUK preken, me qëllim:
+#   · rreshtat-KOMENT — askush s'i sheh, dhe ato shpjegojnë prejardhjen e forkut;
+#   · `is_public()` te src/common.rs dhe provat e saj — ajo mat nëse një adresë
+#     i takon infrastrukturës PUBLIKE të RustDesk-ut; serveri ynë nuk i takon,
+#     pra `false` është përgjigjja e saktë. Një zëvendësim do ta bënte të gënjejë;
+#   · provat te `libs/hbb_common/src/{websocket,socket_client}.rs`.
+# ═══════════════════════════════════════════════════════════════════════════
+
+FAQJA = "https://spacedesk.spacecode.tech"
+NDIHMA = FAQJA + "/ndihma.html"
+
+URLAT = {
+    "https://rustdesk.com/docs/en/manual/linux/#x11-required":      NDIHMA + "#x11",
+    "https://rustdesk.com/docs/en/client/linux/#x11-required":      NDIHMA + "#x11",
+    "https://rustdesk.com/docs/en/manual/linux/#login-screen":      NDIHMA + "#ekrani-kycjes",
+    "https://rustdesk.com/docs/en/client/linux/#login-screen":      NDIHMA + "#ekrani-kycjes",
+    "https://rustdesk.com/docs/en/client/linux/#permissions-issue": NDIHMA + "#lejet-linux",
+    "https://rustdesk.com/docs/en/client/mac/#enable-permissions":  NDIHMA + "#mac",
+    "https://rustdesk.com/docs/en/":                                NDIHMA,
+    "https://rustdesk.com/privacy.html":                            FAQJA + "/privatesia.html",
+    "https://rustdesk.com/download":                                FAQJA + "/",
+    "https://rustdesk.com/pricing":                                 NDIHMA + "#cmimi",
+    "https://rustdesk.com/":                                        FAQJA + "/",
+    "https://rustdesk.com":                                         FAQJA,
+    # 🚨 KJO NUK ËSHTË MARKË, ËSHTË RRJEDHJE: kontrolli i versionit i dërgonte
+    #    RustDesk-ut sistemin, versionin dhe arkitekturën e çdo pajisjeje —
+    #    ndërsa politika jonë e privatësisë thotë «asnjë palë e tretë».
+    "https://api.rustdesk.com/version/latest":                      FAQJA + "/api/version/latest",
+    # Rrugëdalja e fundit e `get_api_server()`: pa të, hyrja me llogari i
+    # dërgonte emrin dhe fjalëkalimin serverit të tyre admin.
+    "https://admin.rustdesk.com":                                   "http://desk.spacecode.tech:21114",
+}
+
+# Jo çdo markë te lidhjet është URL: te «Settings → About» i MOBILIT adresa
+# shfaqet si ETIKETË e dukshme, dhe ajo s'përputhet me asnjë model «https://…».
+# Pra lidhja do të hapte faqen tonë ndërsa njeriu lexonte emrin e tyre.
+ETIKETAT = {
+    "Text('rustdesk.com'": "Text('spacedesk.spacecode.tech'",
+}
+
+SKEDARET_URL = [
+    "src/client.rs",
+    "src/lang/en.rs",
+    "libs/hbb_common/src/lib.rs",
+    "libs/hbb_common/src/config.rs",
+    "flutter/lib/common.dart",
+    "flutter/lib/desktop/pages/connection_page.dart",
+    "flutter/lib/desktop/pages/desktop_home_page.dart",
+    "flutter/lib/desktop/pages/desktop_setting_page.dart",
+    "flutter/lib/desktop/pages/install_page.dart",
+    "flutter/lib/mobile/pages/connection_page.dart",
+    "flutter/lib/mobile/pages/settings_page.dart",
+]
+
+RE_URL = re.compile(r'https?://[A-Za-z0-9.-]*rustdesk\.com[^\s"\'`)\];,]*')
+
+def eshte_koment(r):
+    r = r.lstrip()
+    return r.startswith("//") or r.startswith("#") or r.startswith("* ") or r.startswith("/*")
+
+print()
+print("4) URL-të e dukshme")
+te_panjohura = []
+ndryshuar_url = 0
+for sh in SKEDARET_URL:
+    p = os.path.join(RRENJA, sh)
+    if not os.path.exists(p):
+        deshtime.append("mungon skedari: " + sh)
+        continue
+    rreshtat = io.open(p, encoding="utf-8").read().split("\n")
+    dal = []
+    ndryshuar = False
+    for nr, r in enumerate(rreshtat, 1):
+        if eshte_koment(r):
+            dal.append(r); continue
+        i_ri = r
+        for m in RE_URL.findall(r):
+            if m in URLAT:
+                i_ri = i_ri.replace(m, URLAT[m])
+            else:
+                te_panjohura.append("%s:%d  %s" % (sh, nr, m))
+        for vjeter, zev in ETIKETAT.items():
+            i_ri = i_ri.replace(vjeter, zev)
+        if i_ri != r:
+            ndryshuar = True
+        dal.append(i_ri)
+    if ndryshuar:
+        io.open(p, "w", encoding="utf-8").write("\n".join(dal))
+        ndryshuar_url += 1
+        print("  ✅", sh)
+
+# `get_api_server()` te src/common.rs: VETËM rreshti i rrugëdaljes, kurrë
+# `is_public()` dhe kurrë provat e saj.
+p = os.path.join(RRENJA, "src", "common.rs")
+t = io.open(p, encoding="utf-8").read()
+vjeter = '"https://admin.rustdesk.com".to_owned()'
+i_ri = '"http://desk.spacecode.tech:21114".to_owned()'
+if vjeter in t:
+    if t.count(vjeter) != 1:
+        deshtime.append("src/common.rs: %d dalje te rrugëdaljes — pritej 1" % t.count(vjeter))
+    else:
+        io.open(p, "w", encoding="utf-8").write(t.replace(vjeter, i_ri))
+        ndryshuar_url += 1
+        print("  ✅ src/common.rs (rrugëdalja e get_api_server)")
+elif i_ri not in t:
+    deshtime.append("src/common.rs: as rrugëdalja e vjetër, as e reja — burimi ndryshoi")
+
+print("📐 skedarë me URL të ndryshuar: %d" % ndryshuar_url)
+
+if te_panjohura:
+    deshtime.append("URL të panjohura (vendos ku duhet të çojnë, te URLAT): "
+                    + " | ".join(te_panjohura[:5]))
+
+# ── 🛡️ PORTA E DYTË: asnjë rresht kodi me markën e vjetër, as si etiketë ────
+mbeten_url = []
+for sh in SKEDARET_URL:
+    p = os.path.join(RRENJA, sh)
+    if not os.path.exists(p):
+        continue
+    for nr, r in enumerate(io.open(p, encoding="utf-8"), 1):
+        if "rustdesk.com" in r and not eshte_koment(r):
+            mbeten_url.append("%s:%d" % (sh, nr))
+if mbeten_url:
+    deshtime.append("URL: %d rreshta kodi ende mbajnë rustdesk.com (%s)"
+                    % (len(mbeten_url), ", ".join(mbeten_url[:4])))
+else:
+    print("✅ URL: asnjë rresht kodi nuk çon e nuk shkruan më rustdesk.com")
+
+
 # 🛡️ ROJA. Pa të, çdo model i pagjetur ishte vetëm një rresht ⚠️ dhe skripti
 # dilte 0 — pra ndërtimi vazhdonte me markë gjysmake. Tani ndërtimi BIE këtu.
 if deshtime:

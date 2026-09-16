@@ -435,7 +435,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       final isToUpdate = (isWindows || isMacOS) && bind.mainIsInstalled();
       String btnText = isToUpdate ? 'Update' : 'Download';
       GestureTapCallback onPressed = () async {
-        final Uri url = Uri.parse('https://rustdesk.com/download');
+        final Uri url = Uri.parse('https://spacedesk.spacecode.tech/');
         await launchUrl(url);
       };
       if (isToUpdate) {
@@ -528,7 +528,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
             marginTop: LinuxCards.isEmpty ? 20.0 : 5.0,
             help: 'Help',
             link:
-                'https://rustdesk.com/docs/en/client/linux/#permissions-issue',
+                'https://spacedesk.spacecode.tech/ndihma.html#lejet-linux',
             closeButton: true,
             closeOption: keyShowSelinuxHelpTip,
           ));
@@ -539,13 +539,13 @@ class _DesktopHomePageState extends State<DesktopHomePage>
             "Warning", "wayland_experiment_tip", "", () async {},
             marginTop: LinuxCards.isEmpty ? 20.0 : 5.0,
             help: 'Help',
-            link: 'https://rustdesk.com/docs/en/client/linux/#x11-required'));
+            link: 'https://spacedesk.spacecode.tech/ndihma.html#x11'));
       } else if (bind.mainIsLoginWayland()) {
         LinuxCards.add(buildInstallCard("Warning",
             "Login screen using Wayland is not supported", "", () async {},
             marginTop: LinuxCards.isEmpty ? 20.0 : 5.0,
             help: 'Help',
-            link: 'https://rustdesk.com/docs/en/client/linux/#login-screen'));
+            link: 'https://spacedesk.spacecode.tech/ndihma.html#ekrani-kycjes'));
       }
       if (LinuxCards.isNotEmpty) {
         return Column(
