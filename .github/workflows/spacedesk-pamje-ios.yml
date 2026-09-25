@@ -182,7 +182,7 @@ jobs:
       - name: Build rustdesk lib
         run: |
           rustup target add ${{ matrix.job.target }}
-          export SODIUM_LIB_DIR=/tmp/sodium/lib SODIUM_STATIC=1
+          export SODIUM_LIB_DIR=/tmp/sodium/lib  # statike si parazgjedhje; SODIUM_STATIC e vret build.rs-në
           ls "$SODIUM_LIB_DIR"/libsodium.a
           cargo build --locked --features flutter --release --target aarch64-apple-ios-sim --lib
           mkdir -p target/aarch64-apple-ios/release
