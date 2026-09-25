@@ -75,7 +75,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          brew install nasm yasm autoconf autoconf-archive automake libtool
+          brew install nasm yasm
       - name: Checkout source code
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -99,9 +99,6 @@ jobs:
           v = json.load(open("vcpkg.json"))
           v["dependencies"] = [d for d in v["dependencies"]
                                if not (isinstance(d, dict) and d.get("name") == "ffmpeg" and not d.get("host"))]
-          # libsodium-sys 0.2.7 s'e njeh `aarch64-apple-ios-sim` («Unknown iOS build
-          # target») — merret gati nga vcpkg dhe i jepet me SODIUM_LIB_DIR.
-          v["dependencies"].append({"name": "libsodium", "host": False})
           json.dump(v, open("vcpkg.json", "w"), indent=2)
           EOF
           ! grep -A2 '"ffmpeg"' vcpkg.json | grep -q '"host": false' || { echo "⛔ ffmpeg mbeti"; exit 1; }
@@ -169,10 +166,23 @@ jobs:
           name: bridge-artifact
           path: ./
 
+      - name: libsodium per simulatorin
+        run: |
+          set -e
+          curl -fsSL -o /tmp/s.tgz https://download.libsodium.org/libsodium/releases/libsodium-1.0.20.tar.gz
+          mkdir -p /tmp/s && tar -xzf /tmp/s.tgz -C /tmp/s --strip-components=1 && cd /tmp/s
+          SDK=$(xcrun --sdk iphonesimulator --show-sdk-path)
+          export CC="$(xcrun --sdk iphonesimulator -f clang)"
+          export CFLAGS="-O2 -arch arm64 -isysroot $SDK -mios-simulator-version-min=13.0"
+          export LDFLAGS="$CFLAGS"
+          ./configure --host=arm-apple-darwin --disable-shared --enable-static --prefix=/tmp/sodium >/dev/null
+          make -j"$(sysctl -n hw.ncpu)" >/dev/null && make install >/dev/null
+          lipo -info /tmp/sodium/lib/libsodium.a
+
       - name: Build rustdesk lib
         run: |
           rustup target add ${{ matrix.job.target }}
-          export SODIUM_LIB_DIR="$VCPKG_ROOT/installed/arm64-ios/lib" SODIUM_STATIC=1
+          export SODIUM_LIB_DIR=/tmp/sodium/lib SODIUM_STATIC=1
           ls "$SODIUM_LIB_DIR"/libsodium.a
           cargo build --locked --features flutter --release --target aarch64-apple-ios-sim --lib
           mkdir -p target/aarch64-apple-ios/release
