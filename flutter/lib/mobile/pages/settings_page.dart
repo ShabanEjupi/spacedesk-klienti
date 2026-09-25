@@ -159,7 +159,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       var update = false;
 
-      if (_hasIgnoreBattery) {
+      if (_hasIgnoreBattery && !bind.isOutgoingOnly()) {
         if (await checkAndUpdateIgnoreBatteryStatus()) {
           update = true;
         }
